@@ -4,38 +4,47 @@ using UnityEngine;
 
 public class MeshGenerator
 {
-   public static MeshData GenerateTerrainMesh(float[,] heightMap)
+    public static MeshData GenerateTerrainMesh(float[,] heightMap, float heightMultiplier, AnimationCurve heightCurve, int levelOfDetails)
     {
         int width = heightMap.GetLength(0);
         int height = heightMap.GetLength(1);
         float topLeftX = (width - 1) / -2f;
         float topLeftZ = (height - 1) / 2f;
+        int meshSimplificationIncrement = levelOfDetails * 2;
 
-
-        MeshData meshData = new MeshData(width, height);
         int vertexIndex = 0;
 
-        for (int y = 0; y < height; y++)
+        if (levelOfDetails == 0)
         {
-            for (int x = 0; x < width; x++)
+            meshSimplificationIncrement = 1;
+        }
+        else
+        {
+            meshSimplificationIncrement = levelOfDetails * 2;
+        }
+
+        int verticesPerLine = (width - 1) / meshSimplificationIncrement + 1;
+        MeshData meshData = new MeshData(verticesPerLine, verticesPerLine);
+
+        for (int y = 0; y < height; y += meshSimplificationIncrement)
+        {
+            for (int x = 0; x < width; x += meshSimplificationIncrement)
             {
-                meshData.vertices[vertexIndex] = new Vector3( topLeftX + x, heightMap[x, y], topLeftZ - y);
+                meshData.vertices[vertexIndex] = new Vector3(topLeftX + x, heightCurve.Evaluate(heightMap[x, y]) * heightMultiplier, topLeftZ - y);
                 meshData.uvs[vertexIndex] = new Vector2(x / (float)width, y / (float)height);
 
-                if(x < width - 1 && y < height - 1)
+                if (x < width - 1 && y < height - 1)
                 {
-                    meshData.AddTriangle(vertexIndex, vertexIndex + width + 1, vertexIndex + width);
-                    meshData.AddTriangle(vertexIndex + width + 1, vertexIndex, vertexIndex + 1);
+                    meshData.AddTriangle(vertexIndex, vertexIndex + verticesPerLine + 1, vertexIndex + verticesPerLine);
+                    meshData.AddTriangle(vertexIndex + verticesPerLine + 1, vertexIndex, vertexIndex + 1);
                 }
 
                 vertexIndex++;
             }
         }
-
         return meshData;
     }
 }
-
 public class MeshData
 {
     public Vector3[] vertices;
@@ -49,7 +58,6 @@ public class MeshData
         triangles = new int[(meshHeight - 1) * (meshHeight - 1) * 6];
         uvs = new Vector2[meshWidth * meshHeight];
     }
-
     public void AddTriangle(int a, int b, int c)
     {
         triangles[triangleIndex] = a;
@@ -58,7 +66,6 @@ public class MeshData
 
         triangleIndex += 3;
     }
-
     public Mesh CreateMesh()
     {
         Mesh mesh = new Mesh();
